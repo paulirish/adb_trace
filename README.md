@@ -58,3 +58,12 @@ On the computer your Android is connected to:
     * `dev`: The development/canary build of Chrome
     * `build`: Compiled Chrome yourself? This one is for you.
 * `--view`: Runs the `trace-event-viewer` command upon completion.
+
+## trace-event-viewer ##
+
+`trace-event-viewer` is a standalone version of Chrome's about:tracing UI
+for viewing multithreaded performance traces. Works on OSX and Linux and
+even Windows using Chrome Apps v2 to make it look like a regular app.
+
+You can grab it from here: https://github.com/natduca/trace_event_viewer
+
