@@ -6,6 +6,13 @@ import sys
 import optparse
 import time
 
+CHROME_PACKAGE_MAPPING = {
+  "stable": "com.android.chrome",
+  "beta": "com.chrome.beta",
+  "dev": "com.google.android.apps.chrome_dev",
+  "build": "com.google.android.apps.chrome"
+}
+
 def call_checked(*args):
   r = subprocess.call(args)
   assert r == 0
@@ -36,7 +43,7 @@ def get_display_refresh_rate():
   if re.match('^\d+$', lines[2]):
     return 1e9 / float(lines[2])
 
-  print "Odd, I didn't get anything snae back from surfaceflinger to gusss refresh rate."
+  print "Odd, I didn't get anything back from surfaceflinger to gusss refresh rate."
   print "I got [%s, %s]" % (lines[1], lines[2])
   return 60
 
@@ -66,18 +73,16 @@ def main():
   parser.add_option('--refresh-rate', '-r', dest='refresh_rate', action='store', default=0, help='The refresh rate for the screen, in hertz. If not given, the script will try to autoguess it.')
   parser.add_option('--url', dest='url', action='store', default=None, help='A URL to navigate to before running the test.')
   parser.add_option('-v', '--view', dest='run_tev', action='store_true', default=False, help='Run trace-event-viewer upon completion.')
-  parser.add_option('-b', '--browser', dest='browser', action='store', default=None, help='Which browser you want to run against: stable / beta')
+  parser.add_option('-b', '--browser', dest='browser', action='store', default='stable', help='Which browser you want to run against: stable / beta / dev / build')
   options, args = parser.parse_args()
 
-  start_cmd = "com.google.android.apps.chrome.GPU_PROFILER_START"
-  stop_cmd = "com.google.android.apps.chrome.GPU_PROFILER_STOP"
-
-  if options.browser and options.browser == "beta":
-    start_cmd = "com.chrome.beta.GPU_PROFILER_START"
-    stop_cmd = "com.chrome.beta.GPU_PROFILER_STOP"
+  if CHROME_PACKAGE_MAPPING.get(options.browser) == None:
+    print "Did not specify a valid browser name: stable, beta, dev, or build.";
+    return 0;
 
   if options.url:
-    lines = run_and_readlines_strip_empty("adb", "shell", """am start -d "%s" -n com.android.chrome/.Main""" % options.url)
+    url_cmd = """am start -d "%s" -n %s/.Main""" % (options.url, CHROME_PACKAGE_MAPPING[options.browser])
+    lines = run_and_readlines_strip_empty("adb", "shell", url_cmd)
     print "Press enter when loaded..."
     sys.stdin.readline()
 
@@ -87,8 +92,10 @@ def main():
 
   purge_files()
 
-  run("adb", "shell", "am", "broadcast",
-      "-a", start_cmd)
+  start_cmd = CHROME_PACKAGE_MAPPING[options.browser] + ".GPU_PROFILER_START"
+  stop_cmd = CHROME_PACKAGE_MAPPING[options.browser] + ".GPU_PROFILER_STOP"
+
+  run("adb", "shell", "am", "broadcast", "-a", start_cmd)
   can_pull = True
   try:
     print "Press enter to stop profiling."
@@ -96,8 +103,7 @@ def main():
   except KeyboardInterrupt:
     can_pull = False
   finally:
-    run("adb", "shell", "am", "broadcast",
-        "-a", stop_cmd)
+    run("adb", "shell", "am", "broadcast", "-a", stop_cmd)
 
   if can_pull:
     pull_result('./chrome.json')
