@@ -55,6 +55,6 @@ On the computer your Android is connected to:
 * `--browser`: The browser channel: stable, beta, dev, or build.
     * `stable`: The official build of Chrome
     * `beta`: The beta build of Chrome
-    * `dev`: The developer/canary build of Chrome
+    * `dev`: The development/canary build of Chrome
     * `build`: Compiled Chrome yourself? This one is for you.
 * `--view`: Runs the `trace-event-viewer` command upon completion.
