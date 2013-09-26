@@ -1,12 +1,7 @@
-adb_trace
-=========
+# adb_trace
+# Android Debug Bridge + Chrome Tracing
 
-Android Debug Bridge + Chrome Tracing
-
-## Compatible versions of Android Chrome ##
-
-* 25 (stable)
-* 27 (dev)
+Requires Android Chrome version 25+
 
 ## Prerequisites ##
 
@@ -19,7 +14,7 @@ Android Debug Bridge + Chrome Tracing
 
 ## Grabbing a capture from a stable Chrome build ##
 
-```
+```sh
 $ python ./adb_trace.py
 ['SurfaceView', '16954612']
 Refresh rate auto-guessed to be 58.981002.
@@ -28,17 +23,15 @@ Press enter to stop profiling.
 Pulling chrome-profile-results-2013-03-19-014011 to ./chrome.json
 ```
 
-## Grabbing a capture from a developer Chrome build ##
+Using beta?
 
+```sh
+$ python ./adb_trace.py --browser beta
 ```
-$ python ./adb_trace.py --browser dev
-['SurfaceView', '16954612']
-Refresh rate auto-guessed to be 58.981002.
-Press enter to stop profiling.
 
-Pulling chrome-profile-results-2013-03-19-014011 to ./chrome.json
+Using dev channel or developer build? (Sorry, internal only right now)
+`--browser dev` and `--browser build`
 
-```
 
 ## Viewing a capture ##
 
