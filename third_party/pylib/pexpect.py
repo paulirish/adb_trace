@@ -7,7 +7,7 @@ import os
 import sys
 
 _CHROME_SRC = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), '..', '..', '..')
+    os.path.abspath(os.path.dirname(__file__)), '..', '..')
 
 _PEXPECT_PATH = os.path.join(_CHROME_SRC, 'third_party', 'pexpect')
 if _PEXPECT_PATH not in sys.path:
