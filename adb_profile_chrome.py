@@ -4,15 +4,18 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import base64
 import gzip
 import logging
 import optparse
 import os
 import re
+import select
 import shutil
 import sys
 import threading
 import time
+import webbrowser
 import zipfile
 import zlib
 
@@ -28,6 +31,43 @@ from pylib import cmd_helper
 from pylib import constants
 from pylib import pexpect
 
+
+_TRACE_VIEWER_TEMPLATE = """<!DOCTYPE html>
+<html>
+  <head>
+    <title>%(title)s</title>
+    <style>
+      %(timeline_css)s
+    </style>
+    <style>
+      .view {
+        overflow: hidden;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+    </style>
+    <script>
+      %(timeline_js)s
+    </script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var trace_data = window.atob('%(trace_data_base64)s');
+        var m = new tracing.TraceModel(trace_data);
+        var timelineViewEl = document.querySelector('.view');
+        ui.decorate(timelineViewEl, tracing.TimelineView);
+        timelineViewEl.model = m;
+        timelineViewEl.tabIndex = 1;
+        timelineViewEl.timeline.focusElement = timelineViewEl;
+      });
+    </script>
+  </head>
+  <body>
+    <div class="view"></view>
+  </body>
+</html>"""
 
 _DEFAULT_CHROME_CATEGORIES = '_DEFAULT_CHROME_CATEGORIES'
 
@@ -205,6 +245,10 @@ def _PrintMessage(heading, eol='\n'):
   sys.stdout.flush()
 
 
+def _WaitForEnter(timeout):
+  select.select([sys.stdin], [], [], timeout)
+
+
 def _StartTracing(controllers, interval):
   for controller in controllers:
     controller.StartTracing(interval)
@@ -215,7 +259,7 @@ def _StopTracing(controllers):
     controller.StopTracing()
 
 
-def _PullTraces(controllers, output, compress):
+def _PullTraces(controllers, output, compress, write_html):
   _PrintMessage('Downloading...', eol='')
   trace_files = []
   for controller in controllers:
@@ -238,33 +282,35 @@ def _PullTraces(controllers, output, compress):
   return result
 
 
-def _CaptureAndPullTrace(controllers, interval, output, compress):
+def _CaptureAndPullTrace(controllers, interval, output, compress, write_html):
   trace_type = ' + '.join(map(str, controllers))
   try:
     _StartTracing(controllers, interval)
     if interval:
-      _PrintMessage('Capturing %d-second %s. Press Ctrl-C to stop early...' % \
+      _PrintMessage('Capturing %d-second %s. Press Enter to stop early...' % \
           (interval, trace_type), eol='')
-      time.sleep(interval)
+      _WaitForEnter(interval)
     else:
       _PrintMessage('Capturing %s. Press Enter to stop...' % trace_type, eol='')
       raw_input()
-  except KeyboardInterrupt:
-    _PrintMessage('\nInterrupted...', eol='')
   finally:
     _StopTracing(controllers)
   if interval:
     _PrintMessage('done')
 
-  return _PullTraces(controllers, output, compress)
+  return _PullTraces(controllers, output, compress, write_html)
 
 
 def _ComputeChromeCategories(options):
   categories = []
-  if options.trace_cc:
+  if options.trace_frame_viewer:
+    categories.append('disabled-by-default-cc.debug')
+  if options.trace_ubercompositor:
     categories.append('disabled-by-default-cc.debug*')
   if options.trace_gpu:
     categories.append('disabled-by-default-gpu.debug*')
+  if options.trace_flow:
+    categories.append('disabled-by-default-toplevel.flow')
   if options.chrome_categories:
     categories += options.chrome_categories.split(',')
   return categories
@@ -313,13 +359,27 @@ def main():
                         'available categories. Systrace is disabled by '
                         'default.', metavar='SYS_CATEGORIES',
                         dest='systrace_categories', default='')
-  categories.add_option('--trace-cc', help='Enable extra trace categories for '
-                        'compositor frame viewer data.', action='store_true')
+  categories.add_option('--trace-cc',
+                        help='Deprecated, use --trace-frame-viewer.',
+                        action='store_true')
+  categories.add_option('--trace-frame-viewer',
+                        help='Enable enough trace categories for '
+                        'compositor frame viewing.', action='store_true')
+  categories.add_option('--trace-ubercompositor',
+                        help='Enable enough trace categories for '
+                        'ubercompositor frame data.', action='store_true')
   categories.add_option('--trace-gpu', help='Enable extra trace categories for '
                         'GPU data.', action='store_true')
+  categories.add_option('--trace-flow', help='Enable extra trace categories '
+                        'for IPC message flows.', action='store_true')
   parser.add_option_group(categories)
 
-  parser.add_option('-o', '--output', help='Save profile output to file.')
+  output_options = optparse.OptionGroup(parser, 'Output options')
+  output_options.add_option('-o', '--output', help='Save trace output to file.')
+  output_options.add_option('--view', help='Open resulting trace file in a '
+                            'browser.', action='store_true')
+  parser.add_option_group(output_options)
+
   browsers = sorted(_GetSupportedBrowsers().keys())
   parser.add_option('-b', '--browser', help='Select among installed browsers. '
                     'One of ' + ', '.join(browsers) + ', "stable" is used by '
@@ -329,10 +389,18 @@ def main():
                     action='store_true')
   parser.add_option('-z', '--compress', help='Compress the resulting trace '
                     'with gzip. ', action='store_true')
-  parser.add_option('--view', dest='run_tev', action='store_true',
+  parser.add_option('--view-tve', dest='run_tev', action='store_true',
                     default=False, help='Run trace-event-viewer upon '
                     'completion.')
   options, args = parser.parse_args()
+  if options.trace_cc:
+    parser.parse_error("""--trace-cc is deprecated.
+
+For basic jank busting uses, use  --trace-frame-viewer
+For detailed study of ubercompositor, pass --trace-ubercompositor.
+
+When in doubt, just try out --trace-frame-viewer.
+""")
 
   if options.verbose:
     logging.getLogger().setLevel(logging.DEBUG)
@@ -372,7 +440,10 @@ def main():
   result = _CaptureAndPullTrace(controllers,
                                 options.time if not options.continuous else 0,
                                 options.output,
-                                options.compress)
+                                options.compress,
+                                False)
+  if options.view:
+    webbrowser.open(result)
   if options.run_tev and result:
     cmd_helper.RunCmd(['trace-event-viewer', result])
 
