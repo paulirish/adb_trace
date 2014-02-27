@@ -9,22 +9,21 @@ Requires Android Chrome version 25+
     * http://developer.android.com/sdk/index.html
 1. Ensure that your Android device is connected and USB debugging is enabled
     * http://developer.android.com/tools/device.html
-1. Ensure that USB debugging is enabled in Chrome (enabled automatically for 28+)
-    * https://developers.google.com/chrome-developer-tools/docs/remote-debugging
+1. Pull in the necessary dependencies with `git submodule update --init`.
 
 ## Grabbing a capture from a stable Chrome build ##
 
 ```sh
-$ python ./adb_profile_chrome.py --time 5
-Capturing 5-second chrome trace. Press Ctrl-C to stop early...done
+$ python ./adb_profile_chrome.py --time 5 --view
+Capturing 5-second chrome trace. Press Enter to stop early...done
 Downloading...done
-Trace written to chrome-profile-results-2013-10-25-181905
+Trace written to chrome-profile-results-2013-10-25-181905.html
 ```
 
 Using beta?
 
 ```sh
-$ python ./adb_profile_chrome.py --time 5 --browser beta
+$ python ./adb_profile_chrome.py --time 5 --browser beta --view
 ```
 
 Using dev channel or developer build? `--browser dev` and `--browser build`
@@ -44,11 +43,8 @@ This can be controlled with the --categories flag.
 
 ## Viewing a capture ##
 
-On the computer your Android is connected to:
-
-1. Navigate to `about:tracing`
-1. Click the *Load* button
-1. Select `chrome-profile-results-YYYY-MM-DD-hhmmss.json` that was copied to your PC.
+Open the created html (`chrome-profile-results-YYYY-MM-DD-hhmmss.json`) file in
+a browser or use the --view flag to make it open automatically.
 
 ## Command Line Options ##
 
@@ -63,7 +59,7 @@ On the computer your Android is connected to:
                         "`stable`" is used by default.
 *  `-v, --verbose`:     Verbose logging.
 *  `-z, --compress`:    Compress the resulting trace with gzip.
-*  `--view`:            Run trace-event-viewer upon completion.
+*  `--view`:            Open the created trace file in a browser.
 
 ### Timed tracing ###
 
@@ -90,8 +86,11 @@ On the computer your Android is connected to:
                         Chrome + systrace by enabling both types of
                         categories. Use "list" to see the available
                         categories. Systrace is disabled by default.
-*    `--trace-cc`:      Enable extra trace categories for compositor frame
+*    `--trace-frame-viewer`: Enable extra trace categories for compositor frame
                         viewer data.
+*    `--trace-ubercompositor`: Enable extra trace categories for delegated
+                        compositing.
+*    `--trace-flow`:    Enable extra trace categories IPC message flows.
 *    `--trace-gpu`:     Enable extra trace categories for GPU data.
 
 
