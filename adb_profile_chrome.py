@@ -19,10 +19,17 @@ import webbrowser
 import zipfile
 import zlib
 
+
 def _SetupImports():
   top = os.path.dirname(os.path.abspath(__file__))
   sys.path.append(os.path.join(top, 'third_party'))
   sys.path.append(os.path.join(top, 'third_party', 'android_testrunner'))
+  trace_viewer_dir = os.path.join(top, 'third_party', 'trace-viewer')
+  if not os.listdir(trace_viewer_dir):
+    sys.exit('The directory third_party/trace-viewer is empty. '
+             'Please run: git submodule update --init')
+  sys.path.append(trace_viewer_dir)
+
 
 _SetupImports()
 
@@ -31,43 +38,10 @@ from pylib import cmd_helper
 from pylib import constants
 from pylib import pexpect
 
-
-_TRACE_VIEWER_TEMPLATE = """<!DOCTYPE html>
-<html>
-  <head>
-    <title>%(title)s</title>
-    <style>
-      %(timeline_css)s
-    </style>
-    <style>
-      .view {
-        overflow: hidden;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-      }
-    </style>
-    <script>
-      %(timeline_js)s
-    </script>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        var trace_data = window.atob('%(trace_data_base64)s');
-        var m = new tracing.TraceModel(trace_data);
-        var timelineViewEl = document.querySelector('.view');
-        ui.decorate(timelineViewEl, tracing.TimelineView);
-        timelineViewEl.model = m;
-        timelineViewEl.tabIndex = 1;
-        timelineViewEl.timeline.focusElement = timelineViewEl;
-      });
-    </script>
-  </head>
-  <body>
-    <div class="view"></view>
-  </body>
-</html>"""
+_TRACE_VIEWER_ROOT = os.path.join(constants.DIR_SOURCE_ROOT,
+                                  'third_party', 'trace-viewer')
+sys.path.append(_TRACE_VIEWER_ROOT)
+from build import trace2html
 
 _DEFAULT_CHROME_CATEGORIES = '_DEFAULT_CHROME_CATEGORIES'
 
@@ -240,6 +214,13 @@ def _ArchiveFiles(host_files, output):
       os.unlink(host_file)
 
 
+def _PackageTracesAsHtml(trace_files, html_file):
+  with open(html_file, 'w') as f:
+    trace2html.WriteHTMLForTracesToFile(trace_files, f)
+  for trace_file in trace_files:
+    os.unlink(trace_file)
+
+
 def _PrintMessage(heading, eol='\n'):
   sys.stdout.write('%s%s' % (heading, eol))
   sys.stdout.flush()
@@ -259,11 +240,16 @@ def _StopTracing(controllers):
     controller.StopTracing()
 
 
-def _PullTraces(controllers, output, compress, write_html):
+def _PullTraces(controllers, output, compress, write_json):
   _PrintMessage('Downloading...', eol='')
   trace_files = []
   for controller in controllers:
     trace_files.append(controller.PullTrace())
+
+  if not write_json:
+    html_file = os.path.splitext(trace_files[0])[0] + '.html'
+    _PackageTracesAsHtml(trace_files, html_file)
+    trace_files = [html_file]
 
   if compress and len(trace_files) == 1:
     result = output or trace_files[0] + '.gz'
@@ -282,7 +268,7 @@ def _PullTraces(controllers, output, compress, write_html):
   return result
 
 
-def _CaptureAndPullTrace(controllers, interval, output, compress, write_html):
+def _CaptureAndPullTrace(controllers, interval, output, compress, write_json):
   trace_type = ' + '.join(map(str, controllers))
   try:
     _StartTracing(controllers, interval)
@@ -298,7 +284,7 @@ def _CaptureAndPullTrace(controllers, interval, output, compress, write_html):
   if interval:
     _PrintMessage('done')
 
-  return _PullTraces(controllers, output, compress, write_html)
+  return _PullTraces(controllers, output, compress, write_json)
 
 
 def _ComputeChromeCategories(options):
@@ -376,8 +362,13 @@ def main():
 
   output_options = optparse.OptionGroup(parser, 'Output options')
   output_options.add_option('-o', '--output', help='Save trace output to file.')
+  output_options.add_option('--json', help='Save trace as raw JSON instead of '
+                            'HTML.', action='store_true')
   output_options.add_option('--view', help='Open resulting trace file in a '
                             'browser.', action='store_true')
+  output_options.add_option('--view-tve', dest='run_tev', action='store_true',
+                            default=False, help='Run trace-event-viewer upon '
+                            'completion.')
   parser.add_option_group(output_options)
 
   browsers = sorted(_GetSupportedBrowsers().keys())
@@ -389,9 +380,6 @@ def main():
                     action='store_true')
   parser.add_option('-z', '--compress', help='Compress the resulting trace '
                     'with gzip. ', action='store_true')
-  parser.add_option('--view-tve', dest='run_tev', action='store_true',
-                    default=False, help='Run trace-event-viewer upon '
-                    'completion.')
   options, args = parser.parse_args()
   if options.trace_cc:
     parser.parse_error("""--trace-cc is deprecated.
@@ -437,13 +425,18 @@ When in doubt, just try out --trace-frame-viewer.
     _PrintMessage('No trace categories enabled.')
     return 1
 
+  if options.output:
+    options.output = os.path.expanduser(options.output)
   result = _CaptureAndPullTrace(controllers,
                                 options.time if not options.continuous else 0,
                                 options.output,
                                 options.compress,
-                                False)
+                                options.json)
   if options.view:
-    webbrowser.open(result)
+    if sys.platform == 'darwin':
+      os.system('/usr/bin/open %s' % os.path.abspath(result))
+    else:
+      webbrowser.open(result)
   if options.run_tev and result:
     cmd_helper.RunCmd(['trace-event-viewer', result])
 
