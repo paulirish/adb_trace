@@ -59,7 +59,7 @@ class ChromeTracingController(object):
     self._trace_file = None
     self._trace_interval = None
     self._trace_start_re = \
-       re.compile(r'Logging performance trace to file: (.*)')
+       re.compile(r'Logging performance trace to file')
     self._trace_finish_re = \
        re.compile(r'Profiler finished[.] Results are in (.*)[.]')
     self._adb.StartMonitoringLogcat(clear=False)
@@ -81,18 +81,16 @@ class ChromeTracingController(object):
     # The first one is printed when tracing starts and the second one indicates
     # that the trace file is ready to be pulled.
     try:
-      self._trace_file = self._adb.WaitForLogMatch(self._trace_start_re,
-                                                   None,
-                                                   timeout=5).group(1)
+      self._adb.WaitForLogMatch(self._trace_start_re, None, timeout=5)
     except pexpect.TIMEOUT:
       raise RuntimeError('Trace start marker not found. Is the correct version '
                          'of the browser running?')
 
   def StopTracing(self):
-    if not self._trace_file:
-      return
     self._adb.BroadcastIntent(self._package_info.package, 'GPU_PROFILER_STOP')
-    self._adb.WaitForLogMatch(self._trace_finish_re, None, timeout=120)
+    self._trace_file = self._adb.WaitForLogMatch(self._trace_finish_re,
+                                                 None,
+                                                 timeout=120).group(1)
 
   def PullTrace(self):
     # Wait a bit for the browser to finish writing the trace file.
