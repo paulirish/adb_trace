@@ -364,6 +364,8 @@ def main():
                             'HTML.', action='store_true')
   output_options.add_option('--view', help='Open resulting trace file in a '
                             'browser.', action='store_true')
+  output_options.add_option('--view-canary', help='Open resulting trace file in '
+                            'Canary.', action='store_true')
   output_options.add_option('--view-tve', dest='run_tev', action='store_true',
                             default=False, help='Run trace-event-viewer upon '
                             'completion.')
@@ -430,12 +432,19 @@ When in doubt, just try out --trace-frame-viewer.
                                 options.output,
                                 options.compress,
                                 options.json)
-  if options.view:
+  if options.view_canary:
+    if sys.platform == 'darwin':
+      os.system(('/usr/bin/open -a /Applications/Google\ Chrome\ Canary.app %s '
+                '--args --enable-impl-side-painting --enable-skia-benchmarking '
+                '--allow-webui-compositing') % os.path.abspath(result))
+    else:
+      _PrintMessage('No Chrome Canary on this platform to open trace in, try a different view method')
+  elif options.view:
     if sys.platform == 'darwin':
       os.system('/usr/bin/open %s' % os.path.abspath(result))
     else:
       webbrowser.open(result)
-  if options.run_tev and result:
+  elif options.run_tev and result:
     cmd_helper.RunCmd(['trace-event-viewer', result])
 
 
