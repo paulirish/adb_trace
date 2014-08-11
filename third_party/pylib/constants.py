@@ -3,18 +3,19 @@
 # found in the LICENSE file.
 
 """Defines a set of constants shared by test runners and other scripts."""
+# pylint: disable=W0212
 
 import collections
+import logging
 import os
 import subprocess
-import sys
 
 
 DIR_SOURCE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                os.pardir, os.pardir, os.pardir))
 ISOLATE_DEPS_DIR = os.path.join(DIR_SOURCE_ROOT, 'isolate_deps_dir')
 
-CHROMIUM_TEST_SHELL_HOST_DRIVEN_DIR = os.path.join(
+CHROME_SHELL_HOST_DRIVEN_DIR = os.path.join(
     DIR_SOURCE_ROOT, 'chrome', 'android')
 
 
@@ -65,12 +66,12 @@ PACKAGE_INFO = {
         '/data/local/tmp/content-shell-command-line',
         None,
         'org.chromium.content_shell_apk.tests'),
-    'chromium_test_shell': PackageInfo(
-        'org.chromium.chrome.testshell',
-        'org.chromium.chrome.testshell.ChromiumTestShellActivity',
-        '/data/local/tmp/chromium-testshell-command-line',
-        'chromium_testshell_devtools_remote',
-        'org.chromium.chrome.testshell.tests'),
+    'chrome_shell': PackageInfo(
+        'org.chromium.chrome.shell',
+        'org.chromium.chrome.shell.ChromeShellActivity',
+        '/data/local/tmp/chrome-shell-command-line',
+        'chrome_shell_devtools_remote',
+        'org.chromium.chrome.shell.tests'),
     'android_webview_shell': PackageInfo(
         'org.chromium.android_webview.shell',
         'org.chromium.android_webview.shell.AwShellActivity',
@@ -87,6 +88,12 @@ PACKAGE_INFO = {
         'org.chromium.content_browsertests_apk',
         'org.chromium.content_browsertests_apk.ContentBrowserTestsActivity',
         '/data/local/tmp/content-browser-tests-command-line',
+        None,
+        None),
+    'chromedriver_webview_shell': PackageInfo(
+        'org.chromium.chromedriver_webview_shell',
+        'org.chromium.chromedriver_webview_shell.Main',
+        None,
         None,
         None),
 }
@@ -117,6 +124,8 @@ SDK_BUILD_JAVALIB_DIR = 'lib.java'
 SDK_BUILD_TEST_JAVALIB_DIR = 'test.lib.java'
 SDK_BUILD_APKS_DIR = 'apks'
 
+ADB_KEYS_FILE = '/data/misc/adb/adb_keys'
+
 PERF_OUTPUT_DIR = os.path.join(DIR_SOURCE_ROOT, 'out', 'step_results')
 # The directory on the device where perf test output gets saved to.
 DEVICE_PERF_OUTPUT_DIR = (
@@ -124,16 +133,26 @@ DEVICE_PERF_OUTPUT_DIR = (
 
 SCREENSHOTS_DIR = os.path.join(DIR_SOURCE_ROOT, 'out_screenshots')
 
-ANDROID_SDK_VERSION = 18
+ANDROID_SDK_VERSION = 20
+ANDROID_SDK_BUILD_TOOLS_VERSION = '20.0.0'
 ANDROID_SDK_ROOT = os.path.join(DIR_SOURCE_ROOT,
                                 'third_party/android_tools/sdk')
+ANDROID_SDK_TOOLS = os.path.join(ANDROID_SDK_ROOT,
+                                 'build-tools', ANDROID_SDK_BUILD_TOOLS_VERSION)
 ANDROID_NDK_ROOT = os.path.join(DIR_SOURCE_ROOT,
                                 'third_party/android_tools/ndk')
 
-EMULATOR_SDK_ROOT = os.path.join(DIR_SOURCE_ROOT, 'android_emulator_sdk')
+EMULATOR_SDK_ROOT = os.environ.get('ANDROID_EMULATOR_SDK_ROOT',
+                                   os.path.join(DIR_SOURCE_ROOT,
+                                                'android_emulator_sdk'))
+
+BAD_DEVICES_JSON = os.path.join(DIR_SOURCE_ROOT,
+                                os.environ.get('CHROMIUM_OUT_DIR', 'out'),
+                                'bad_devices.json')
 
 UPSTREAM_FLAKINESS_SERVER = 'test-results.appspot.com'
 
+DEVICE_LOCAL_PROPERTIES_PATH = '/data/local.prop'
 
 def GetBuildType():
   try:
@@ -158,7 +177,18 @@ def GetOutDirectory(build_type=None):
       GetBuildType() if build_type is None else build_type))
 
 
-def _GetADBPath():
+def _Memoize(func):
+  def Wrapper():
+    try:
+      return func._result
+    except AttributeError:
+      func._result = func()
+      return func._result
+  return Wrapper
+
+
+@_Memoize
+def GetAdbPath():
   if os.environ.get('ANDROID_SDK_ROOT'):
     return 'adb'
   # If envsetup.sh hasn't been sourced and there's no adb in the path,
@@ -168,11 +198,9 @@ def _GetADBPath():
       subprocess.call(['adb', 'version'], stdout=devnull, stderr=devnull)
     return 'adb'
   except OSError:
-    print >> sys.stderr, 'No adb found in $PATH, fallback to checked in binary.'
+    logging.debug('No adb found in $PATH, fallback to checked in binary.')
     return os.path.join(ANDROID_SDK_ROOT, 'platform-tools', 'adb')
 
-
-ADB_PATH = _GetADBPath()
 
 # Exit codes
 ERROR_EXIT_CODE = 1
