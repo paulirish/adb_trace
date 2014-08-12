@@ -46,7 +46,7 @@ def _ComputeSystraceCategories(options):
   return options.systrace_categories.split(',')
 
 
-def _ComputePerfCategories(perf_controller, options):
+def _ComputePerfCategories(options):
   if not perf_controller.PerfProfilerController.IsSupported():
     return []
   if not options.perf_categories:
@@ -214,7 +214,7 @@ When in doubt, just try out --trace-frame-viewer.
 
   chrome_categories = _ComputeChromeCategories(options)
   systrace_categories = _ComputeSystraceCategories(options)
-  perf_categories = _ComputePerfCategories(perf_controller, options)
+  perf_categories = _ComputePerfCategories(options)
 
   if chrome_categories and 'webview' in systrace_categories:
     logging.warning('Using the "webview" category in systrace together with '
