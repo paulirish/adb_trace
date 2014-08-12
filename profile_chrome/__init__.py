@@ -17,17 +17,18 @@ def _CheckSubmodules():
 
 
 def _SetupImports():
-  sys.path.append(os.path.join(os.path.dirname(__file__),
-			       os.pardir,
-			       'third_party'))
-  sys.path.append(os.path.join(os.path.dirname(__file__),
-			       os.pardir,
-			       'third_party',
+  top = os.path.join(os.path.dirname(__file__), os.pardir)
+  sys.path.append(os.path.join(top,
+                               'third_party'))
+  sys.path.append(os.path.join(top,
+                               'third_party',
 			       'android_testrunner'))
-  sys.path.append(os.path.join(os.path.dirname(__file__),
-			       os.pardir,
+  sys.path.append(os.path.join(top,
 			       'third_party',
 			       'trace-viewer'))
+  sys.path.append(os.path.join(top,
+			       'third_party',
+			       'pexpect'))
 
 _CheckSubmodules()
 _SetupImports()
