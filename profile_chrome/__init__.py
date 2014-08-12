@@ -5,14 +5,29 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             os.pardir,
-                             'third_party'))
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             os.pardir,
-                             'third_party',
-                             'android_testrunner'))
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             os.pardir,
-                             'third_party',
-                             'trace-viewer'))
+
+def _CheckSubmodules():
+  trace_viewer_dir = os.path.join(os.path.dirname(__file__),
+                                  os.pardir,
+                                  'third_party',
+                                  'trace-viewer')
+  if not os.listdir(trace_viewer_dir):
+    sys.exit('The directory third_party/trace-viewer is empty. '
+             'Please run: git submodule update --init')
+
+
+def _SetupImports():
+  sys.path.append(os.path.join(os.path.dirname(__file__),
+			       os.pardir,
+			       'third_party'))
+  sys.path.append(os.path.join(os.path.dirname(__file__),
+			       os.pardir,
+			       'third_party',
+			       'android_testrunner'))
+  sys.path.append(os.path.join(os.path.dirname(__file__),
+			       os.pardir,
+			       'third_party',
+			       'trace-viewer'))
+
+_CheckSubmodules()
+_SetupImports()
