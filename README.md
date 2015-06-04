@@ -21,7 +21,9 @@ If you attempt to use this repo, follow the install instructions at the bottom.
 ----------
 
 
-## Grabbing a capture from a stable Chrome and viewing it ##
+## Basics
+
+Grabbing a capture from Chrome stable and viewing it:
 
 ```sh
 ./profile_chrome.py --continuous --view
@@ -31,8 +33,8 @@ If you attempt to use this repo, follow the install instructions at the bottom.
   Trace written to chrome-profile-results-2013-10-25-181905.html
 ```
 
-### Common cases
-The documentation of all options is available below.
+### Common operations
+The [documentation of all options](https://github.com/johnmccutchan/adb_trace#command-line-options) is available below.
 
 ```sh
 # Basic capture from stable
@@ -51,13 +53,10 @@ The documentation of all options is available below.
 
 ```
 
-By default we also record a normal Chrome trace in addition to the [Android Systrace](http://developer.android.com/tools/help/systrace.html). This can be controlled with the --categories flag.
+Systrace note: by default we also record a normal Chrome trace in addition to the [Android Systrace](http://developer.android.com/tools/help/systrace.html). This can be controlled with the --categories flag.
 
-## Viewing a capture ##
 
-If you leave off `--view` flag (to open it immediately), you can open the created .json file (`chrome-profile-results-YYYY-MM-DD-hhmmss.json`) in `chrome://tracing`.
-
-## Command Line Options ##
+## Command Line Options
 
 ```sh
 ./profile_chrome.py --help
