@@ -1,8 +1,8 @@
-# adb_trace
-# Android Debug Bridge + Chrome Tracing
+# adb_trace: Android Debug Bridge + Chrome Tracing
 
 ----------
 ----------
+
 ### This repo's source is no longer updated. 
 
 The documentation below is updated and revised, however the source in this repo is stale.
@@ -16,6 +16,7 @@ cd src/tools
 ```
 
 If you attempt to use this repo, follow the install instructions at the bottom.
+
 ----------
 ----------
 
