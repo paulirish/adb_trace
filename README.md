@@ -7,13 +7,14 @@
 
 The documentation below is updated and revised, however the source in this repo is stale.
 
-You will get best results with the `profile_chrome.py` script in the Chromium project.
-[Get Chromium source](https://www.chromium.org/developers/how-tos/get-the-code) (with no history, for speed). 
-Script is located at `src/tools/profile_chrome.py`
+You will get best results with the `adb_profile_chrome` and `systrace` scripts in [Catapult](https://github.com/catapult-project/catapult/), which is part of Chromium.
+You'll find them in `bin` within [`catapult/systrace`](https://github.com/catapult-project/catapult/tree/master/systrace/)
 ```
-cd src/tools
-./profile_chrome.py --continuous -z --view
+cd systrace
+./bin/adb_profile_chrome --continuous -z --view
 ```
+
+The binaries have different names than before, so the documentation below will need some adapting. :)
 
 If you attempt to use this repo, follow the install instructions at the bottom.
 
